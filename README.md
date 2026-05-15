@@ -154,6 +154,7 @@ pnpm build
 cd backend
 uv run ruff check .
 uv run ruff format --check .
+uv run pytest tests/ -v
 ```
 
 ## Core flow
@@ -212,7 +213,7 @@ uv run ruff format --check .
         ↓
 5. Run quality checks
    Frontend:  cd frontend && pnpm check && pnpm build
-   Backend:   cd backend && uv run ruff check .
+   Backend:   cd backend && uv run ruff check . && uv run pytest tests/
         ↓
 6. Commit & push          →  git push origin feat/your-feature
         ↓

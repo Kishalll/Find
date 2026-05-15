@@ -107,6 +107,7 @@ Backend:
 cd backend
 uv run ruff check .
 uv run ruff format --check .
+uv run pytest tests/ -v
 ```
 
 ## Pull request format
