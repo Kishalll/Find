@@ -23,6 +23,8 @@ import {
   updatePersonName,
 } from "@/lib/api";
 
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+
 // ─── Person Card Component ────────────────────────────────────────────────────
 
 function PersonCard({
@@ -36,6 +38,15 @@ function PersonCard({
 }) {
   const [isEditing, setIsEditing] = useState(false);
   const [nameInput, setNameInput] = useState(person.name ?? "");
+
+  const submitName = () => {
+    const trimmed = nameInput.trim();
+    if (!trimmed) {
+      toast.error("Name cannot be empty");
+      return;
+    }
+    nameMutation.mutate(trimmed);
+  };
 
   const nameMutation = useMutation({
     mutationFn: (name: string) => updatePersonName(person.id, name),
@@ -67,7 +78,7 @@ function PersonCard({
               className="relative aspect-square overflow-hidden rounded-2xl border border-[var(--frost)] bg-white/[0.025]"
             >
               <Image
-                src={`http://localhost:8000/api/image/${mediaId}/thumbnail`}
+                src={`${API_BASE_URL}/api/image/${mediaId}/thumbnail`}
                 alt="Person photo"
                 fill
                 className="object-cover"
@@ -92,7 +103,7 @@ function PersonCard({
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
               onKeyDown={(e) => {
-                if (e.key === "Enter") nameMutation.mutate(nameInput);
+                if (e.key === "Enter") submitName();
                 if (e.key === "Escape") setIsEditing(false);
               }}
               placeholder="Enter a name..."
@@ -100,7 +111,7 @@ function PersonCard({
             />
             <button
               type="button"
-              onClick={() => nameMutation.mutate(nameInput)}
+              onClick={submitName}
               disabled={nameMutation.isPending}
               className="icon-button"
               aria-label="Save name"
@@ -123,7 +134,9 @@ function PersonCard({
         ) : (
           <>
             <p className="flex-1 text-base font-medium text-[#f0f0f0]">
-              {person.name ?? (
+              {person.name?.trim() ? (
+                person.name
+              ) : (
                 <span className="text-[#5f6568]">Unknown person</span>
               )}
             </p>
@@ -312,7 +325,12 @@ export default function PeoplePage() {
 
       {/* Person detail modal */}
       {selectedPersonId !== null && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 backdrop-blur-xl">
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 px-4 backdrop-blur-xl"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="person-modal-title"
+        >
           <div className="frost-panel page-enter relative max-h-[90dvh] w-full max-w-6xl overflow-hidden rounded-3xl bg-black">
             <button
               type="button"
@@ -324,7 +342,10 @@ export default function PeoplePage() {
             </button>
 
             <div className="border-b border-[var(--frost)] px-6 py-5">
-              <h2 className="text-xl font-medium text-[#f0f0f0]">
+              <h2
+                id="person-modal-title"
+                className="text-xl font-medium text-[#f0f0f0]"
+              >
                 {selectedPersonQuery.data?.person_name ?? "Unknown person"}
               </h2>
               <p className="mt-1 text-sm text-[#a1a4a5]">
@@ -354,7 +375,7 @@ export default function PeoplePage() {
                     >
                       <div className="relative aspect-square bg-white/[0.025]">
                         <Image
-                          src={`http://localhost:8000/api/image/${img.media_id}/thumbnail`}
+                          src={`${API_BASE_URL}/api/image/${img.media_id}/thumbnail`}
                           alt="Photo"
                           fill
                           className="object-cover"

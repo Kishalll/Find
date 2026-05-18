@@ -12,7 +12,8 @@ from find_api.core.database import get_db
 from find_api.models.face import Face
 from find_api.models.person import Person
 from find_api.models.media import Media
-
+import logging
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -128,10 +129,14 @@ def update_person_name(
     if not person:
         raise HTTPException(status_code=404, detail="Person not found")
 
-    person.name = body.name.strip()
+    clean_name = body.name.strip()
+    if not clean_name:
+        raise HTTPException(status_code=400, detail="Name cannot be empty")
+    if len(clean_name) > 255:
+        raise HTTPException(status_code=400, detail="Name is too long")
+    person.name = clean_name
     db.commit()
     db.refresh(person)
-
     return {
         "id": person.id,
         "name": person.name,
@@ -149,8 +154,9 @@ def trigger_face_clustering(db: Session = Depends(get_db)):
         from find_api.workers.jobs import cluster_faces
         result = cluster_faces()
         return result
-    except Exception as e:
+    except Exception:
+        logger.exception("Face clustering failed")
         raise HTTPException(
             status_code=500,
-            detail=f"Face clustering failed: {str(e)}",
+            detail="Face clustering failed",
         )

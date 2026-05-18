@@ -29,7 +29,6 @@ def analyze_image(media_id: int):
         generate_hybrid_embedding,
     )
 
-    # job = get_current_job()
     db = SessionLocal()
     media = None
 
@@ -68,7 +67,7 @@ def analyze_image(media_id: int):
         # Extract metadata (Objects, Caption, OCR)
         metadata = extract_image_metadata(image)
 
-      # Generate Hybrid Embedding
+        # Generate Hybrid Embedding
         media.vector = generate_hybrid_embedding(image, metadata)
 
         # Store metadata
@@ -83,6 +82,7 @@ def analyze_image(media_id: int):
         from find_api.workers.processors import detect_and_store_faces
         face_count = detect_and_store_faces(image, media_id, db)
         logger.info("Face detection complete: %s faces found", face_count)
+
         try:
             enqueue_clustering_job(reason=f"media:{media_id}")
         except Exception as exc:  # noqa: BLE001
@@ -225,15 +225,18 @@ def cluster_images():
     finally:
         clear_clustering_job_state()
         db.close()
+
+
 def cluster_faces():
     """
     Background job to cluster all detected faces into person groups.
-    
+
     How it works:
     1. Load all face embeddings from the database
-    2. Run HDBSCAN to group similar faces together
-    3. Create a Person row for each group
-    4. Link each face to its Person group
+    2. Check we have enough faces BEFORE deleting anything
+    3. Run HDBSCAN to group similar faces together
+    4. Create a Person row for each group
+    5. Link each face to its Person group
     """
     from find_api.ml.clusterer import get_image_clusterer
     from find_api.models.face import Face
@@ -244,13 +247,8 @@ def cluster_faces():
     try:
         logger.info("Starting face clustering job...")
 
-        # Step 1: Delete old person assignments to start fresh
-        # This is safe because Person names are kept if person_id matches
-        db.query(Face).update({Face.person_id: None}, synchronize_session=False)
-        db.query(Person).delete(synchronize_session=False)
-        db.flush()
-
-        # Step 2: Load all faces that have embeddings
+        # Step 1: Load all faces that have embeddings
+        # Check BEFORE deleting anything so we don't lose data
         face_rows = (
             db.query(Face.id, Face.embedding)
             .filter(Face.embedding.isnot(None))
@@ -269,6 +267,11 @@ def cluster_faces():
                 "total_faces": len(face_rows),
                 "message": "Not enough faces for clustering",
             }
+
+        # Step 2: Only reset assignments once we know clustering will proceed
+        db.query(Face).update({Face.person_id: None}, synchronize_session=False)
+        db.query(Person).delete(synchronize_session=False)
+        db.flush()
 
         # Step 3: Prepare embeddings as numpy array
         embeddings = np.asarray(
