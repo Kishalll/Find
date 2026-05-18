@@ -311,7 +311,16 @@ function GalleryPageContent() {
   const closeDetail = useCallback(() => {
     setSelectedMediaId(null);
     setQuerySelectedItem(null);
-  }, []);
+
+    const params = new URLSearchParams(searchParams.toString());
+
+    params.delete("media");
+
+    const queryString = params.toString();
+    const url = queryString ? `${pathname}?${queryString}` : pathname;
+
+    router.replace(url, { scroll: false });
+  }, [router, pathname, searchParams]);
 
   const filters = [
     { label: "All", value: "all" },
@@ -388,6 +397,7 @@ function GalleryPageContent() {
                 key={value}
                 href={buildGalleryHref({ filter: value })}
                 scroll={false}
+                aria-current={filter === value ? "page" : undefined}
                 className={`rounded-full px-4 py-2 text-sm font-medium transition-colors ${
                   filter === value
                     ? "bg-white text-black"
@@ -401,6 +411,7 @@ function GalleryPageContent() {
 
           <button
             type="button"
+            aria-pressed={likedOnly}
             onClick={handleLikedOnlyChange}
             className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-xs font-medium transition-colors ${
               likedOnly
