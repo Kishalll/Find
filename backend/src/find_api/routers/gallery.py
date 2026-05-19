@@ -147,9 +147,7 @@ def get_image_detail(media_id: int, db: Session = Depends(get_db)):
         "width": media.width,
         "height": media.height,
         "created_at": media.created_at.isoformat() if media.created_at else None,
-        "processed_at": media.processed_at.isoformat()
-        if media.processed_at
-        else None,
+        "processed_at": media.processed_at.isoformat() if media.processed_at else None,
         "cluster_id": media.cluster_id,
         "metadata": metadata,
         "caption": metadata.get("caption", ""),
@@ -253,23 +251,17 @@ def delete_image(media_id: int, db: Session = Depends(get_db)):
     try:
         delete_file(media.minio_key)
     except Exception as exc:  # noqa: BLE001
-        raise HTTPException(
-            500, f"Failed to delete file from storage: {exc}"
-        ) from exc
+        raise HTTPException(500, f"Failed to delete file from storage: {exc}") from exc
 
     db.delete(media)
     db.flush()
 
-    clusters = db.query(Cluster).filter(
-        Cluster.member_ids.contains([media_id])
-    ).all()
+    clusters = db.query(Cluster).filter(Cluster.member_ids.contains([media_id])).all()
     for cluster in clusters:
         current_members = cluster.member_ids or []
         if media_id in current_members:
             cluster.member_ids = [
-                member_id
-                for member_id in current_members
-                if member_id != media_id
+                member_id for member_id in current_members if member_id != media_id
             ]
             cluster.member_count = len(cluster.member_ids)
 

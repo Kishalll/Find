@@ -95,6 +95,7 @@ def analyze_image(media_id: int):
         # Detect faces and store them in the faces table
         # This runs after the main image processing is complete
         from find_api.workers.processors import detect_and_store_faces
+
         face_count = detect_and_store_faces(image, media_id, db)
         logger.info("Face detection complete: %s faces found", face_count)
 
@@ -265,9 +266,7 @@ def cluster_faces():
         # Step 1: Load all faces that have embeddings
         # Check BEFORE deleting anything so we don't lose data
         face_rows = (
-            db.query(Face.id, Face.embedding)
-            .filter(Face.embedding.isnot(None))
-            .all()
+            db.query(Face.id, Face.embedding).filter(Face.embedding.isnot(None)).all()
         )
 
         # Need at least 2 faces to cluster
@@ -289,9 +288,7 @@ def cluster_faces():
         db.flush()
 
         # Step 3: Prepare embeddings as numpy array
-        embeddings = np.asarray(
-            [row.embedding for row in face_rows], dtype=np.float32
-        )
+        embeddings = np.asarray([row.embedding for row in face_rows], dtype=np.float32)
         face_ids = [row.id for row in face_rows]
 
         logger.info("Clustering %s faces...", len(face_rows))
@@ -302,9 +299,7 @@ def cluster_faces():
 
         # Step 5: Create Person rows for each cluster
         # label -1 means noise - skip those
-        unique_labels = sorted(
-            {int(label) for label in labels if int(label) != -1}
-        )
+        unique_labels = sorted({int(label) for label in labels if int(label) != -1})
 
         if not unique_labels:
             db.commit()

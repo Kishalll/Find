@@ -33,7 +33,4 @@ class Person(Base):
     updated_at = Column(DateTime(timezone=True), onupdate=func.now())
 
     def __repr__(self):
-        return (
-            f"<Person(id={self.id}, "
-            f"name={self.name!r})>"
-        )
+        return f"<Person(id={self.id}, " f"name={self.name!r})>"

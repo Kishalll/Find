@@ -131,6 +131,8 @@ def generate_hybrid_embedding(
     except Exception as e:
         logger.error(f"CLIP embedding failed: {e}")
         raise
+
+
 def detect_and_store_faces(image: Image.Image, media_id: int, db) -> int:
     """
     Detect faces in image and store them in the database.

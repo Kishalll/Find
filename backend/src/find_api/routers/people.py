@@ -11,16 +11,18 @@ from typing import List, Optional
 from find_api.core.database import get_db
 from find_api.models.face import Face
 from find_api.models.person import Person
-from find_api.models.media import Media
 import logging
+
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
 # ─── Pydantic schemas (what the API returns) ──────────────────────────────────
 
+
 class PersonResponse(BaseModel):
     """What we send back when listing people"""
+
     id: int
     name: Optional[str]
     face_count: int
@@ -33,10 +35,12 @@ class PersonResponse(BaseModel):
 
 class PersonUpdate(BaseModel):
     """What the user sends when naming a person"""
+
     name: str
 
 
 # ─── Endpoints ────────────────────────────────────────────────────────────────
+
 
 @router.get("/people", response_model=List[PersonResponse])
 def list_people(db: Session = Depends(get_db)):
@@ -50,9 +54,7 @@ def list_people(db: Session = Depends(get_db)):
     for person in persons:
         # Count how many faces belong to this person
         face_count = (
-            db.query(func.count(Face.id))
-            .filter(Face.person_id == person.id)
-            .scalar()
+            db.query(func.count(Face.id)).filter(Face.person_id == person.id).scalar()
         )
 
         # Get up to 4 sample media IDs for thumbnail preview
@@ -103,10 +105,12 @@ def get_person_images(person_id: int, db: Session = Depends(get_db)):
                 "media_id": row.media_id,
                 "faces": [],
             }
-        images[row.media_id]["faces"].append({
-            "bounding_box": row.bounding_box,
-            "confidence": row.confidence,
-        })
+        images[row.media_id]["faces"].append(
+            {
+                "bounding_box": row.bounding_box,
+                "confidence": row.confidence,
+            }
+        )
 
     return {
         "person_id": person_id,
@@ -152,6 +156,7 @@ def trigger_face_clustering(db: Session = Depends(get_db)):
     """
     try:
         from find_api.workers.jobs import cluster_faces
+
         result = cluster_faces()
         return result
     except Exception:
