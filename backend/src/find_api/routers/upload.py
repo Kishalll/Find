@@ -123,7 +123,7 @@ async def upload_bulk_images(
             max_file_size = settings.MAX_UPLOAD_SIZE_MB * 1024 * 1024
 
             for info in members:
-                filename = info.filename.split("/")[-1]
+                filename = _get_zip_member_basename(info.filename)
 
                 if not filename:
                     continue
@@ -189,6 +189,11 @@ async def upload_bulk_images(
         raise HTTPException(400, "Uploaded file is not a valid ZIP archive")
 
     return {"results": results, "total": len(results)}
+
+
+def _get_zip_member_basename(member_name: str) -> str:
+    """Return only the final filename from a ZIP member path."""
+    return member_name.replace("\\", "/").split("/")[-1]
 
 
 def _ingest_image(

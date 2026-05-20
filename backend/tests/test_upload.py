@@ -138,6 +138,23 @@ class TestBulkUpload:
         assert response.status_code == 400
         assert "nested" in response.json()["detail"].lower()
 
+    def test_bulk_upload_uses_basename_for_windows_style_paths(self, client):
+        """ZIP member paths using backslashes should store only the base filename."""
+        zip_buffer = io.BytesIO()
+        with zipfile.ZipFile(zip_buffer, "a", zipfile.ZIP_DEFLATED) as zf:
+            zf.writestr(r"nested\windows-path.png", get_valid_image_bytes())
+        zip_buffer.seek(0)
+
+        response = client.post(
+            "/api/upload/bulk",
+            files=[("file", ("images.zip", zip_buffer.read(), "application/zip"))],
+        )
+
+        assert response.status_code == 200
+        result = response.json()["results"][0]
+        assert result["status"] == "uploaded"
+        assert result["filename"] == "windows-path.png"
+
     def test_bulk_upload_total_size_exceeded(self, client):
         """ZIP whose total uncompressed size exceeds limit is rejected."""
         zip_buffer = io.BytesIO()
