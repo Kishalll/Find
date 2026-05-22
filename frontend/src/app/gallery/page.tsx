@@ -1,6 +1,6 @@
 "use client";
 
-import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { InfiniteData, useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import {
   Download,
   Eye,
@@ -46,6 +46,12 @@ type GalleryEmptyState = {
   showClearLikedOnly: boolean;
 };
 
+/**
+ * Determines the appropriate empty state messaging based on current gallery filters.
+ * @param filter - The current status filter applied to the gallery.
+ * @param likedOnly - Whether the gallery is currently filtered to show only liked images.
+ * @returns A configuration object for the empty state UI.
+ */
 function getGalleryEmptyState(
   filter: GalleryFilter,
   likedOnly: boolean,
@@ -118,6 +124,11 @@ function getGalleryEmptyState(
       };
 }
 
+/**
+ * Maps a raw URL status parameter to a strongly-typed GalleryFilter.
+ * @param status - The raw string parameter from the URL.
+ * @returns The resolved GalleryFilter type.
+ */
 const getFilterFromStatusParam = (status: string | null): GalleryFilter => {
   if (status === "completed" || status === "indexed") {
     return "indexed";
@@ -130,6 +141,11 @@ const getFilterFromStatusParam = (status: string | null): GalleryFilter => {
   return "all";
 };
 
+/**
+ * Maps a strongly-typed GalleryFilter back to a URL-friendly status string.
+ * @param filter - The active GalleryFilter type.
+ * @returns The string value to use in the URL, or null if no filter should be applied.
+ */
 const getStatusParamFromFilter = (filter: GalleryFilter): string | null => {
   if (filter === "all") {
     return null;
@@ -138,6 +154,10 @@ const getStatusParamFromFilter = (filter: GalleryFilter): string | null => {
   return filter === "indexed" ? "completed" : filter;
 };
 
+/**
+ * Core gallery component managing infinite scrolling, filtering, and media interactions.
+ * Uses React Query's useInfiniteQuery for paginated data fetching and client-side caching.
+ */
 function GalleryPageContent() {
   const [selectedMediaId, setSelectedMediaId] = useState<number | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<{
@@ -300,9 +320,9 @@ function GalleryPageContent() {
       setDeletionError(null);
       await queryClient.cancelQueries({ queryKey: galleryQueryKey });
       const previousData =
-        queryClient.getQueryData<{ pages: GalleryResponse[] }>(galleryQueryKey);
+        queryClient.getQueryData<InfiniteData<GalleryResponse, number>>(galleryQueryKey);
 
-      queryClient.setQueryData<{ pages: GalleryResponse[]; pageParams: unknown[] }>(
+      queryClient.setQueryData<InfiniteData<GalleryResponse, number>>(
         galleryQueryKey,
         (old) => {
           if (!old) return old;
@@ -783,6 +803,10 @@ function GalleryPageContent() {
     </div>
   );
 }
+/**
+ * Main entry point for the Gallery route. Wraps the gallery content in a Suspense
+ * boundary to support useSearchParams() during server-side rendering.
+ */
 export default function GalleryPage() {
   return (
     <Suspense fallback={null}>
