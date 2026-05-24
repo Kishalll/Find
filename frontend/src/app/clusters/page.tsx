@@ -159,8 +159,8 @@ export default function ClustersPage() {
     isClusterActionBusy || !hasEnoughIndexedImages;
   const clusteringUnavailableMessage =
     indexedQuery.isSuccess && !hasEnoughIndexedImages
-    ? `Need at least ${minClusterSize} indexed images to cluster. Found ${indexedImageCount}.`
-    : null;
+      ? `Need at least ${minClusterSize} indexed images to cluster. Found ${indexedImageCount}.`
+      : null;
 
   const emptyStateVariant = useMemo(() => {
     if (!indexedQuery.isSuccess) return "loading";
@@ -168,7 +168,7 @@ export default function ClustersPage() {
     if (indexedImageCount < minClusterSize) return "not-enough-images";
     return "no-stable-clusters";
   }, [indexedQuery.isSuccess, indexedImageCount, minClusterSize]);
-  
+
   const filteredMembers =
     selectedClusterQuery.data?.members.filter((member) =>
       member.filename.toLowerCase().includes(filterText.toLowerCase()),
@@ -253,7 +253,7 @@ export default function ClustersPage() {
             {emptyStateVariant === "loading" && (
               <div className="flex items-center justify-center py-32">
                 <Loader2 className="h-8 w-8 animate-spin text-[color:var(--silver)]" />
-            </div>
+              </div>
             )}
 
             {emptyStateVariant === "no-indexed-images" && (
@@ -275,27 +275,27 @@ export default function ClustersPage() {
                   Not enough indexed images
                 </p>
                 <p className="mb-6 text-sm text-[color:var(--silver)]">
-                  Need at least {minClusterSize} indexed images before clustering.
-                  Found {indexedImageCount}.
+                  Need at least {minClusterSize} indexed images before
+                  clustering. Found {indexedImageCount}.
                 </p>
-              <div
-                className="mx-auto mb-2 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-[color:var(--frost)]"
-                role="progressbar"
-                aria-valuenow={indexedImageCount}
-                aria-valuemin={0}
-                aria-valuemax={minClusterSize}
-                aria-label={`${indexedImageCount} of ${minClusterSize} images indexed`}
-              >
-              <div
-                className="h-full rounded-full bg-[color:var(--blue)] transition-all duration-500"
-                style={{
-                  width: `${Math.min((indexedImageCount / minClusterSize) * 100, 100)}%`,
-                }}
-              />
-              </div>
-              <p className="text-xs text-[color:var(--muted)]">
-                {indexedImageCount} / {minClusterSize} indexed
-              </p>
+                <div
+                  className="mx-auto mb-2 h-1.5 w-full max-w-xs overflow-hidden rounded-full bg-[color:var(--frost)]"
+                  role="progressbar"
+                  aria-valuenow={indexedImageCount}
+                  aria-valuemin={0}
+                  aria-valuemax={minClusterSize}
+                  aria-label={`${indexedImageCount} of ${minClusterSize} images indexed`}
+                >
+                  <div
+                    className="h-full rounded-full bg-[color:var(--blue)] transition-all duration-500"
+                    style={{
+                      width: `${Math.min((indexedImageCount / minClusterSize) * 100, 100)}%`,
+                    }}
+                  />
+                </div>
+                <p className="text-xs text-[color:var(--muted)]">
+                  {indexedImageCount} / {minClusterSize} indexed
+                </p>
               </div>
             )}
 
@@ -308,23 +308,23 @@ export default function ClustersPage() {
                 <p className="mb-6 text-sm text-[color:var(--silver)]">
                   Try indexing more visually similar images.
                 </p>
-              <button
-                type="button"
-                onClick={() => clusterMutation.mutate()}
-                disabled={isClusterActionBusy}
-                className="white-pill px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
-              >
-              {isClusterActionBusy ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Play className="h-4 w-4" />
-              )}
-              {isClusterActionBusy ? "Clustering..." : "Run clustering"}
-            </button>
-          </div>
+                <button
+                  type="button"
+                  onClick={() => clusterMutation.mutate()}
+                  disabled={isClusterActionBusy}
+                  className="white-pill px-5 py-2.5 text-sm font-semibold disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {isClusterActionBusy ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Play className="h-4 w-4" />
+                  )}
+                  {isClusterActionBusy ? "Clustering..." : "Run clustering"}
+                </button>
+              </div>
+            )}
+          </>
         )}
-      </>
-    )}
 
         {data && data.clusters.length > 0 && (
           <div className="page-enter">
