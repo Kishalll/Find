@@ -127,20 +127,32 @@ describe("Gallery card states (light mode)", () => {
     });
     const indexedLabels = screen.getAllByLabelText("Status: Indexed");
     expect(indexedLabels).toHaveLength(2);
+    const [firstIndexedLabel, secondIndexedLabel] = indexedLabels;
+    expect(firstIndexedLabel).toBeDefined();
+    expect(secondIndexedLabel).toBeDefined();
+    if (!firstIndexedLabel || !secondIndexedLabel) {
+      throw new Error(
+        "Expected indexed status labels for rendered gallery cards",
+      );
+    }
 
     // Normal card (id 1) should show image and no filled heart
     const card1Img = screen.getByAltText("image1.jpg");
     expect(card1Img).toBeInTheDocument();
-    expect(card1Img.closest("article")).toContainElement(indexedLabels[0]!);
+    expect(card1Img.closest("article")).toContainElement(firstIndexedLabel);
     const heartBtn1 = screen.getAllByLabelText("Like image")[0];
     expect(heartBtn1).toBeInTheDocument();
 
     // Liked card (id 3) should have filled heart
     const unlikeBtns = screen.getAllByLabelText("Unlike image");
     expect(unlikeBtns).toHaveLength(1);
-    const heartBtn3 = unlikeBtns[0];
+    const [heartBtn3] = unlikeBtns;
+    expect(heartBtn3).toBeDefined();
+    if (!heartBtn3) {
+      throw new Error("Expected unlike button for liked gallery card");
+    }
     expect(heartBtn3).toBeInTheDocument();
-    expect(heartBtn3!.closest("article")).toContainElement(indexedLabels[1]!);
+    expect(heartBtn3.closest("article")).toContainElement(secondIndexedLabel);
     // Failed card (id 2) should show retry button
     const card2Img = screen.getByAltText("image2.jpg");
     expect(card2Img.closest("article")).toContainElement(

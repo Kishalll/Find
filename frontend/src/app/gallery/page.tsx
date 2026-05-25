@@ -408,19 +408,27 @@ function GalleryPageContent() {
       await queryClient.cancelQueries({ queryKey: galleryQueryKey });
 
       const previousData =
-        queryClient.getQueryData<GalleryResponse>(galleryQueryKey);
+        queryClient.getQueryData<InfiniteData<GalleryResponse, number>>(
+          galleryQueryKey,
+        );
 
-      queryClient.setQueryData<GalleryResponse>(galleryQueryKey, (old) => {
-        if (!old) {
-          return old;
-        }
+      queryClient.setQueryData<InfiniteData<GalleryResponse, number>>(
+        galleryQueryKey,
+        (old) => {
+          if (!old) {
+            return old;
+          }
 
-        return {
-          ...old,
-          items: old.items.filter((item) => item.id !== mediaId),
-          total: Math.max(0, old.total - 1),
-        };
-      });
+          return {
+            ...old,
+            pages: old.pages.map((page) => ({
+              ...page,
+              items: page.items.filter((item) => item.id !== mediaId),
+              total: Math.max(0, page.total - 1),
+            })),
+          };
+        },
+      );
 
       if (selectedMediaId === mediaId) {
         setSelectedMediaId(null);
@@ -443,7 +451,7 @@ function GalleryPageContent() {
       toast.error("Failed to move to vault");
     },
     onSuccess: (mediaId) => {
-      queryClient.invalidateQueries({ queryKey: ["gallery"] });
+      queryClient.invalidateQueries({ queryKey: ["gallery-infinite"] });
       queryClient.invalidateQueries({ queryKey: ["image-detail", mediaId] });
     },
   });
