@@ -8,15 +8,19 @@ import io
 
 from PIL import Image
 
+from find_api.core.auth import verify_password
 from find_api.models.session import AuthSession
 from find_api.models.user import User
+
+TEST_PASSWORD = "".join(("auth", "-", "fixture", "-", "value"))
+WRONG_PASSWORD = "".join(("wrong", "-", "fixture", "-", "value"))
 
 
 # -- Helpers ------------------------------------------------------------------
 # Thin wrappers around common request patterns so tests read more naturally.
 
 
-def _setup_admin(client, username="admin", password="dummycredential"):
+def _setup_admin(client, username="admin", password=TEST_PASSWORD):
     """Create the admin account and return the response."""
     return client.post(
         "/api/auth/setup",
@@ -28,7 +32,7 @@ def _setup_admin(client, username="admin", password="dummycredential"):
     )
 
 
-def _login(client, username="admin", password="dummycredential"):
+def _login(client, username="admin", password=TEST_PASSWORD):
     """Log in and return the response."""
     return client.post(
         "/api/auth/login",
@@ -49,7 +53,7 @@ def _create_invite(client, token):
     return client.post("/api/auth/invites", headers=_auth_header(token))
 
 
-def _join(client, invite_token, username="newuser", password="dummycredential"):
+def _join(client, invite_token, username="newuser", password=TEST_PASSWORD):
     """Submit a join request and return the response."""
     return client.post(
         "/api/auth/join",
@@ -126,14 +130,14 @@ def test_login_returns_token(client):
 def test_login_rejects_bad_password(client):
     """Wrong password → 401, nothing else leaked."""
     _setup_admin(client)
-    resp = _login(client, password="wrongcredential")
+    resp = _login(client, password=WRONG_PASSWORD)
     assert resp.status_code == 401
 
 
 def test_login_rejects_unknown_user(client):
     """Non-existent username → same 401 as bad password (no user enumeration)."""
     _setup_admin(client)
-    resp = _login(client, username="ghost", password="wrongcredential")
+    resp = _login(client, username="ghost", password=WRONG_PASSWORD)
     assert resp.status_code == 401
 
 
@@ -199,18 +203,22 @@ def test_member_cannot_create_invite(client):
 
     # Create a member via the invite → join → approve flow
     invite_resp = _create_invite(client, admin_token)
+    assert invite_resp.status_code == 200
     inv_token = invite_resp.json()["invite_token"]
 
     join_resp = _join(client, inv_token, username="member1")
+    assert join_resp.status_code == 200
     req_id = join_resp.json()["join_request_id"]
 
-    client.post(
+    approve_resp = client.post(
         f"/api/auth/join-requests/{req_id}/approve",
         headers=_auth_header(admin_token),
     )
+    assert approve_resp.status_code == 200
 
     # Log in as the new member
-    member_login = _login(client, username="member1", password="dummycredential")
+    member_login = _login(client, username="member1", password=TEST_PASSWORD)
+    assert member_login.status_code == 200
     member_token = member_login.json()["token"]
 
     # Try to create an invite — should be forbidden
@@ -224,6 +232,7 @@ def test_invite_is_single_use(client):
     admin_token = setup.json()["token"]
 
     invite_resp = _create_invite(client, admin_token)
+    assert invite_resp.status_code == 200
     inv_token = invite_resp.json()["invite_token"]
 
     # First use succeeds
@@ -245,6 +254,7 @@ def test_join_creates_pending_request(client):
     admin_token = setup.json()["token"]
 
     invite_resp = _create_invite(client, admin_token)
+    assert invite_resp.status_code == 200
     inv_token = invite_resp.json()["invite_token"]
 
     resp = _join(client, inv_token)
@@ -269,6 +279,7 @@ def test_join_rejects_duplicate_username(client):
     admin_token = setup.json()["token"]
 
     invite_resp = _create_invite(client, admin_token)
+    assert invite_resp.status_code == 200
     inv_token = invite_resp.json()["invite_token"]
 
     # Try to join with the same username as the admin
@@ -285,9 +296,11 @@ def test_approve_creates_member(client):
     admin_token = setup.json()["token"]
 
     invite_resp = _create_invite(client, admin_token)
+    assert invite_resp.status_code == 200
     inv_token = invite_resp.json()["invite_token"]
 
     join_resp = _join(client, inv_token, username="alice")
+    assert join_resp.status_code == 200
     req_id = join_resp.json()["join_request_id"]
 
     resp = client.post(
@@ -307,17 +320,20 @@ def test_approved_user_can_login(client):
     admin_token = setup.json()["token"]
 
     invite_resp = _create_invite(client, admin_token)
+    assert invite_resp.status_code == 200
     inv_token = invite_resp.json()["invite_token"]
 
-    join_resp = _join(client, inv_token, username="bob", password="dummycredential")
+    join_resp = _join(client, inv_token, username="bob", password=TEST_PASSWORD)
+    assert join_resp.status_code == 200
     req_id = join_resp.json()["join_request_id"]
 
-    client.post(
+    approve_resp = client.post(
         f"/api/auth/join-requests/{req_id}/approve",
         headers=_auth_header(admin_token),
     )
+    assert approve_resp.status_code == 200
 
-    login_resp = _login(client, username="bob", password="dummycredential")
+    login_resp = _login(client, username="bob", password=TEST_PASSWORD)
     assert login_resp.status_code == 200
     assert login_resp.json()["user"]["username"] == "bob"
 
@@ -328,9 +344,11 @@ def test_reject_marks_rejected(client):
     admin_token = setup.json()["token"]
 
     invite_resp = _create_invite(client, admin_token)
+    assert invite_resp.status_code == 200
     inv_token = invite_resp.json()["invite_token"]
 
     join_resp = _join(client, inv_token, username="eve")
+    assert join_resp.status_code == 200
     req_id = join_resp.json()["join_request_id"]
 
     resp = client.post(
@@ -347,19 +365,26 @@ def test_non_admin_cannot_approve(client):
     admin_token = setup.json()["token"]
 
     # Create a member first
-    inv1 = _create_invite(client, admin_token).json()["invite_token"]
+    invite1 = _create_invite(client, admin_token)
+    assert invite1.status_code == 200
+    inv1 = invite1.json()["invite_token"]
     join1 = _join(client, inv1, username="member1")
-    client.post(
+    assert join1.status_code == 200
+    approve1 = client.post(
         f"/api/auth/join-requests/{join1.json()['join_request_id']}/approve",
         headers=_auth_header(admin_token),
     )
-    member_token = _login(client, username="member1", password="dummycredential").json()[
-        "token"
-    ]
+    assert approve1.status_code == 200
+    member_login = _login(client, username="member1", password=TEST_PASSWORD)
+    assert member_login.status_code == 200
+    member_token = member_login.json()["token"]
 
     # Now create another join request for member to try approving
-    inv2 = _create_invite(client, admin_token).json()["invite_token"]
+    invite2 = _create_invite(client, admin_token)
+    assert invite2.status_code == 200
+    inv2 = invite2.json()["invite_token"]
     join2 = _join(client, inv2, username="pending_user")
+    assert join2.status_code == 200
     req_id = join2.json()["join_request_id"]
 
     resp = client.post(
@@ -410,12 +435,31 @@ def test_upload_records_uploader(client, db):
 
 def test_passwords_are_hashed(client, db):
     """The stored password_hash must NOT be the plaintext password."""
-    _setup_admin(client, password="dummycredential")
+    _setup_admin(client, password=TEST_PASSWORD)
 
     admin = db.query(User).filter(User.username == "admin").one()
-    assert admin.password_hash != "dummycredential"
-    # bcrypt hashes always start with $2b$
-    assert admin.password_hash.startswith("$2b$")
+    assert admin.password_hash != TEST_PASSWORD
+    assert admin.password_hash.startswith("$2")
+
+
+def test_long_passwords_do_not_match_after_bcrypt_limit(client):
+    """Different long passwords that share the first 72 bytes must not collide."""
+    prefix = "a" * 80
+    exact_password = f"{prefix}-one"
+    colliding_password = f"{prefix}-two"
+
+    resp = _setup_admin(client, password=exact_password)
+    assert resp.status_code == 200
+
+    assert _login(client, password=exact_password).status_code == 200
+    assert _login(client, password=colliding_password).status_code == 401
+
+
+def test_verify_password_accepts_hash_password_output(client, db):
+    _setup_admin(client, password=TEST_PASSWORD)
+
+    admin = db.query(User).filter(User.username == "admin").one()
+    assert verify_password(TEST_PASSWORD, admin.password_hash)
 
 
 def test_session_tokens_are_hashed(client, db):

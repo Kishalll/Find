@@ -1,6 +1,6 @@
 """User model for small-team instance sharing."""
 
-from sqlalchemy import Boolean, Column, DateTime, Integer, String
+from sqlalchemy import Boolean, Column, DateTime, Index, Integer, String
 from sqlalchemy.sql import func
 
 from find_api.core.database import Base
@@ -23,6 +23,16 @@ class User(Base):
     is_active = Column(Boolean, nullable=False, default=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
     last_login = Column(DateTime(timezone=True), nullable=True)
+
+    __table_args__ = (
+        Index(
+            "uq_users_single_admin",
+            "role",
+            unique=True,
+            postgresql_where=role == "admin",
+            sqlite_where=role == "admin",
+        ),
+    )
 
     def __repr__(self):
         return f"<User(id={self.id}, username={self.username}, role={self.role})>"

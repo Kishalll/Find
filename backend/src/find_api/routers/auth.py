@@ -12,7 +12,10 @@ from typing import Optional
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
 from pydantic import BaseModel, Field
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
+from slowapi import Limiter
+from slowapi.util import get_remote_address
 
 from find_api.core.auth import (
     create_session,
@@ -31,6 +34,7 @@ from find_api.models.session import AuthSession
 from find_api.models.user import User
 
 router = APIRouter()
+limiter = Limiter(key_func=get_remote_address)
 
 # --- Request / response schemas ---
 
@@ -67,6 +71,14 @@ def _user_dict(user: User) -> dict:
     }
 
 
+def _ensure_admin_available(admin: Optional[User], db: Session) -> User:
+    if admin is not None:
+        return admin
+    if not is_shared_mode(db):
+        raise HTTPException(400, "Instance is not in shared mode")
+    raise HTTPException(403, "Admin access required")
+
+
 # --- Instance setup ---
 
 
@@ -90,7 +102,11 @@ def setup_instance(
         role="admin",
     )
     db.add(admin)
-    db.commit()
+    try:
+        db.commit()
+    except IntegrityError as exc:
+        db.rollback()
+        raise HTTPException(409, "Instance already set up") from exc
     db.refresh(admin)
 
     raw_token, expires_at = create_session(db, admin.id)
@@ -106,6 +122,7 @@ def setup_instance(
 
 
 @router.post("/auth/login")
+@limiter.limit("5/minute")
 def login(
     request: Request,
     body: LoginRequest,
@@ -138,7 +155,7 @@ def login(
 
 @router.post("/auth/logout")
 def logout(
-    user: User = Depends(get_required_user),
+    user: Optional[User] = Depends(get_required_user),
     authorization: Optional[str] = Header(None),
     db: Session = Depends(get_db),
 ):
@@ -154,7 +171,7 @@ def logout(
 
 @router.get("/auth/me")
 def get_me(
-    user: User = Depends(get_required_user),
+    user: Optional[User] = Depends(get_required_user),
 ):
     """Return the currently authenticated user's info."""
     if user is None:
@@ -169,16 +186,16 @@ def get_me(
 
 @router.post("/auth/invites")
 def create_invite(
-    body: InviteCreateRequest = InviteCreateRequest(),
-    admin: User = Depends(get_admin_user),
+    body: Optional[InviteCreateRequest] = None,
+    admin: Optional[User] = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
     """Generate a single-use invite token.
 
     Admin only. The raw token is returned once and never stored.
     """
-    if admin is None:
-        raise HTTPException(403, "Admin access required")
+    admin = _ensure_admin_available(admin, db)
+    body = body or InviteCreateRequest()
 
     ttl = body.ttl_hours or settings.INVITE_TTL_HOURS
     raw_token, token_hash = generate_invite_token()
@@ -202,12 +219,11 @@ def create_invite(
 
 @router.get("/auth/invites")
 def list_invites(
-    admin: User = Depends(get_admin_user),
+    admin: Optional[User] = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
     """List all invite tokens (metadata only, no raw tokens)."""
-    if admin is None:
-        raise HTTPException(403, "Admin access required")
+    _ensure_admin_available(admin, db)
 
     invites = db.query(InviteToken).order_by(InviteToken.created_at.desc()).all()
     return {
@@ -297,12 +313,11 @@ def submit_join_request(
 
 @router.get("/auth/join-requests")
 def list_join_requests(
-    admin: User = Depends(get_admin_user),
+    admin: Optional[User] = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
     """List all join requests. Admin only."""
-    if admin is None:
-        raise HTTPException(403, "Admin access required")
+    _ensure_admin_available(admin, db)
 
     requests = db.query(JoinRequest).order_by(JoinRequest.created_at.desc()).all()
     return {
@@ -323,12 +338,11 @@ def list_join_requests(
 @router.post("/auth/join-requests/{request_id}/approve")
 def approve_join_request(
     request_id: int,
-    admin: User = Depends(get_admin_user),
+    admin: Optional[User] = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
     """Approve a pending join request and create the user account."""
-    if admin is None:
-        raise HTTPException(403, "Admin access required")
+    admin = _ensure_admin_available(admin, db)
 
     join_req = db.query(JoinRequest).filter(JoinRequest.id == request_id).first()
     if join_req is None:
@@ -361,12 +375,11 @@ def approve_join_request(
 @router.post("/auth/join-requests/{request_id}/reject")
 def reject_join_request(
     request_id: int,
-    admin: User = Depends(get_admin_user),
+    admin: Optional[User] = Depends(get_admin_user),
     db: Session = Depends(get_db),
 ):
     """Reject a pending join request."""
-    if admin is None:
-        raise HTTPException(403, "Admin access required")
+    admin = _ensure_admin_available(admin, db)
 
     join_req = db.query(JoinRequest).filter(JoinRequest.id == request_id).first()
     if join_req is None:

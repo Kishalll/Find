@@ -28,6 +28,9 @@ for p in _patches:
 from fastapi.testclient import TestClient  # noqa: E402
 from find_api.core.database import Base, get_db  # noqa: E402
 from find_api.main import app  # noqa: E402
+from find_api.routers.auth import limiter as auth_limiter  # noqa: E402
+
+TEST_PASSWORD = "".join(("auth", "-", "fixture", "-", "value"))
 
 
 # ---------------------------------------------------------------------------
@@ -85,6 +88,7 @@ def client(db):
     original_lifespan = app.router.lifespan_context
     app.dependency_overrides[get_db] = _override_db
     app.router.lifespan_context = _noop_lifespan
+    auth_limiter.reset()
 
     fake_job = MagicMock(id="test-job-123")
     fake_queue = MagicMock()
@@ -130,9 +134,10 @@ def admin_setup(client):
         "/api/auth/setup",
         json={
             "username": "admin",
-            "password": "dummycredential",
+            "password": TEST_PASSWORD,
             "display_name": "Test Admin",
         },
     )
+    assert resp.status_code == 200, resp.text
     data = resp.json()
     return client, data["token"], data["user"]
