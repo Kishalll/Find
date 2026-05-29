@@ -30,6 +30,7 @@ This directory is organized by document purpose and implementation status.
 ## Guides
 
 - [Common Setup Errors](guides/common-setup-errors.md)
+- [Image Loading Behavior](guides/image-loading.md)
 - [Real ML Troubleshooting](guides/real-ml-troubleshooting.md)
 - [PR Triage Automation Dry Run](guides/pr-triage-dry-run.md)
 - [TestSprite PR Testing](guides/testsprite-ci.md)
