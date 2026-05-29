@@ -130,7 +130,7 @@ def admin_setup(client):
         "/api/auth/setup",
         json={
             "username": "admin",
-            "password": "testpass123",
+            "password": "dummycredential",
             "display_name": "Test Admin",
         },
     )

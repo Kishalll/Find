@@ -16,7 +16,7 @@ from find_api.models.user import User
 # Thin wrappers around common request patterns so tests read more naturally.
 
 
-def _setup_admin(client, username="admin", password="testpass123"):
+def _setup_admin(client, username="admin", password="dummycredential"):
     """Create the admin account and return the response."""
     return client.post(
         "/api/auth/setup",
@@ -28,7 +28,7 @@ def _setup_admin(client, username="admin", password="testpass123"):
     )
 
 
-def _login(client, username="admin", password="testpass123"):
+def _login(client, username="admin", password="dummycredential"):
     """Log in and return the response."""
     return client.post(
         "/api/auth/login",
@@ -49,7 +49,7 @@ def _create_invite(client, token):
     return client.post("/api/auth/invites", headers=_auth_header(token))
 
 
-def _join(client, invite_token, username="newuser", password="newpass123"):
+def _join(client, invite_token, username="newuser", password="dummycredential"):
     """Submit a join request and return the response."""
     return client.post(
         "/api/auth/join",
@@ -126,14 +126,14 @@ def test_login_returns_token(client):
 def test_login_rejects_bad_password(client):
     """Wrong password → 401, nothing else leaked."""
     _setup_admin(client)
-    resp = _login(client, password="wrong-password")
+    resp = _login(client, password="wrongcredential")
     assert resp.status_code == 401
 
 
 def test_login_rejects_unknown_user(client):
     """Non-existent username → same 401 as bad password (no user enumeration)."""
     _setup_admin(client)
-    resp = _login(client, username="ghost", password="whatever123")
+    resp = _login(client, username="ghost", password="wrongcredential")
     assert resp.status_code == 401
 
 
@@ -210,7 +210,7 @@ def test_member_cannot_create_invite(client):
     )
 
     # Log in as the new member
-    member_login = _login(client, username="member1", password="newpass123")
+    member_login = _login(client, username="member1", password="dummycredential")
     member_token = member_login.json()["token"]
 
     # Try to create an invite — should be forbidden
@@ -309,7 +309,7 @@ def test_approved_user_can_login(client):
     invite_resp = _create_invite(client, admin_token)
     inv_token = invite_resp.json()["invite_token"]
 
-    join_resp = _join(client, inv_token, username="bob", password="bobpass1234")
+    join_resp = _join(client, inv_token, username="bob", password="dummycredential")
     req_id = join_resp.json()["join_request_id"]
 
     client.post(
@@ -317,7 +317,7 @@ def test_approved_user_can_login(client):
         headers=_auth_header(admin_token),
     )
 
-    login_resp = _login(client, username="bob", password="bobpass1234")
+    login_resp = _login(client, username="bob", password="dummycredential")
     assert login_resp.status_code == 200
     assert login_resp.json()["user"]["username"] == "bob"
 
@@ -353,7 +353,7 @@ def test_non_admin_cannot_approve(client):
         f"/api/auth/join-requests/{join1.json()['join_request_id']}/approve",
         headers=_auth_header(admin_token),
     )
-    member_token = _login(client, username="member1", password="newpass123").json()[
+    member_token = _login(client, username="member1", password="dummycredential").json()[
         "token"
     ]
 
@@ -410,10 +410,10 @@ def test_upload_records_uploader(client, db):
 
 def test_passwords_are_hashed(client, db):
     """The stored password_hash must NOT be the plaintext password."""
-    _setup_admin(client, password="testpass123")
+    _setup_admin(client, password="dummycredential")
 
     admin = db.query(User).filter(User.username == "admin").one()
-    assert admin.password_hash != "testpass123"
+    assert admin.password_hash != "dummycredential"
     # bcrypt hashes always start with $2b$
     assert admin.password_hash.startswith("$2b$")
 
