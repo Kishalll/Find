@@ -40,6 +40,7 @@ def init_db():
     try:
         # Import all models to register them for metadata creation
         from find_api.models import media, cluster, face, person, feedback  # noqa: F401
+        from find_api.models import user, session, invite, join_request  # noqa: F401
 
         # pgvector must exist before SQLAlchemy creates vector columns.
         if engine.dialect.name == "postgresql":
@@ -116,6 +117,18 @@ def init_db():
                     text(
                         "CREATE INDEX IF NOT EXISTS ix_media_duplicate_of "
                         "ON media (duplicate_of)"
+                    )
+                )
+                conn.execute(
+                    text(
+                        "ALTER TABLE IF EXISTS media "
+                        "ADD COLUMN IF NOT EXISTS uploader_user_id INTEGER"
+                    )
+                )
+                conn.execute(
+                    text(
+                        "CREATE INDEX IF NOT EXISTS ix_media_uploader_user_id "
+                        "ON media (uploader_user_id)"
                     )
                 )
                 conn.execute(

@@ -13,10 +13,12 @@ import mimetypes
 import zipfile
 
 from find_api.core.database import get_db
+from find_api.core.dependencies import get_optional_user
 from find_api.core.queue import get_task_queue
 from find_api.core.storage import upload_file, upload_thumbnail
 from find_api.core.config import settings
 from find_api.models.media import Media
+from find_api.models.user import User
 from find_api.workers.jobs import analyze_image
 
 logger = logging.getLogger(__name__)
@@ -26,7 +28,9 @@ router = APIRouter()
 
 @router.post("/upload")
 async def upload_images(
-    files: List[UploadFile] = File(...), db: Session = Depends(get_db)
+    files: List[UploadFile] = File(...),
+    db: Session = Depends(get_db),
+    user: Optional[User] = Depends(get_optional_user),
 ):
     """
     Upload one or more images for processing
@@ -44,6 +48,7 @@ async def upload_images(
                 content_type=file.content_type,
                 file_data=file_data,
                 db=db,
+                uploader_user_id=user.id if user else None,
             )
             results.append(result)
         except HTTPException:
@@ -63,7 +68,9 @@ async def upload_images(
 
 @router.post("/upload/bulk")
 async def upload_bulk_images(
-    file: UploadFile = File(...), db: Session = Depends(get_db)
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+    user: Optional[User] = Depends(get_optional_user),
 ):
     """
     Upload images in bulk via ZIP archive
@@ -166,6 +173,7 @@ async def upload_bulk_images(
                         content_type=guessed_type,
                         file_data=file_data,
                         db=db,
+                        uploader_user_id=user.id if user else None,
                     )
                     results.append(result)
                 except HTTPException as e:
@@ -204,6 +212,7 @@ def _ingest_image(
     content_type: Optional[str],
     file_data: bytes,
     db: Session,
+    uploader_user_id: Optional[int] = None,
 ) -> dict:
     """Create or reuse a media record from raw image bytes"""
     detected_type = content_type or mimetypes.guess_type(filename)[0] or ""
@@ -244,15 +253,19 @@ def _ingest_image(
     upload_file(file_data, minio_key, detected_type)
     thumbnail_metadata = upload_thumbnail(file_data, file_hash)
 
-    media = Media(
-        file_hash=file_hash,
-        minio_key=minio_key,
-        filename=filename,
-        content_type=detected_type,
-        file_size=file_size,
-        status="pending",
+    media_kwargs = {
+        "file_hash": file_hash,
+        "minio_key": minio_key,
+        "filename": filename,
+        "content_type": detected_type,
+        "file_size": file_size,
+        "status": "pending",
         **(thumbnail_metadata or {}),
-    )
+    }
+    if uploader_user_id is not None:
+        media_kwargs["uploader_user_id"] = uploader_user_id
+
+    media = Media(**media_kwargs)
 
     db.add(media)
     db.commit()

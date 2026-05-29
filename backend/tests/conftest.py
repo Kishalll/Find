@@ -121,3 +121,18 @@ def client(db):
     finally:
         app.dependency_overrides.pop(get_db, None)
         app.router.lifespan_context = original_lifespan
+
+
+@pytest.fixture()
+def admin_setup(client):
+    """Set up an admin account and return (client, token, user_data)."""
+    resp = client.post(
+        "/api/auth/setup",
+        json={
+            "username": "admin",
+            "password": "testpass123",
+            "display_name": "Test Admin",
+        },
+    )
+    data = resp.json()
+    return client, data["token"], data["user"]
