@@ -1,14 +1,14 @@
 """
 Search endpoint for semantic image search
 """
+
 import time
+from typing import Any
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy.orm import Session
 from sqlalchemy import text
+from sqlalchemy.orm import Session
 import json
-
-from typing import Dict
 
 from find_api.core.config import settings
 from find_api.core.database import get_db
@@ -123,7 +123,7 @@ def search_images(
     # Build response
     results = []
     for row in result:
-        metadata_payload: Dict[str, object] = {}
+        metadata_payload: dict[str, object] = {}
 
         # Safely coerce metadata_json into dict
         raw_metadata = row.metadata_json
@@ -179,7 +179,7 @@ def search_images(
 
     total_ms = (time.perf_counter() - t_total_start) * 1000
 
-    response: Dict = {
+    response: dict[str, Any] = {
         "query": q,
         "results": results,
         "total": total_count,
@@ -189,7 +189,7 @@ def search_images(
         "has_more": has_more,
     }
 
-    debug_enabled = debug and settings.ENVIRONMENT in {"local", "development"}
+    debug_enabled = debug and settings.ENVIRONMENT.lower() in {"local", "development"}
     if debug_enabled:
         response["diagnostics"] = {
             "embedding_ms": round(embedding_ms, 2),
