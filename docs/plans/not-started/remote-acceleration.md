@@ -444,7 +444,8 @@ Implementation issues will be opened only after this design is reviewed and acce
 
 ## 13. UX Copy Checklist
 
-This checklist is for implementers building the Remote Acceleration UI (issues 5, 6, 7 from §12). Copy these strings exactly into the frontend.
+This checklist is for implementers building the Remote Acceleration UI (issues 5, 6, 7 from §12). 
+Copy strings are derived from §9.2 (the single source of truth). Implementers should refer to §9.2 for the canonical wording; this checklist summarises the required items for convenience.
 
 ---
 
@@ -478,7 +479,7 @@ This checklist is for implementers building the Remote Acceleration UI (issues 5
 
 ### 13.3 HTTP (Non-localhost) Warning (§9.4)
 
-Shown when configured URL uses `http://` and host is not `localhost` or `127.0.0.1`.
+Shown when configured URL uses `http://` and host is not `localhost`, `127.0.0.1`, `::1`, or `[::1]`.
 
 - [ ] **Warning title:** `⚠ Unencrypted connection`
 - [ ] **Warning body:**
